@@ -6,24 +6,25 @@ from .network import AutoEncoder
 
 def load(path_to_model_dump):
     dump = joblib.load(path_to_model_dump)
-    model = DAE(**dump['constructor_args'])
-    model.parser = dump['parser']
+    model = DAE(**dump["constructor_args"])
+    model.parser = dump["parser"]
     model.network = AutoEncoder(**model.network_cfg).to(model.device)
-    model.network.load_state_dict(dump['network_state_dict'])
+    model.network.load_state_dict(dump["network_state_dict"])
     return model
 
 
 class DAE(object):
     def __init__(
-            self,
-            body_network='deepstack',
-            body_network_cfg=dict(hidden_size=128),
-            swap_noise_probas=.2,
-            cats_handling='onehot',
-            cards=[],
-            embeded_dims=[],
-            device='cpu'
-        ):
+        self,
+        body_network="deepstack",
+        body_network_cfg=dict(hidden_size=128),
+        swap_noise_probas=0.2,
+        cats_handling="onehot",
+        cards=[],
+        embeded_dims=[],
+        device="cpu",
+        project=None,
+    ):
         super().__init__()
         self.body_network = body_network
         self.body_network_cfg = body_network_cfg
@@ -32,14 +33,17 @@ class DAE(object):
         self.cards = cards
         self.embeded_dims = embeded_dims
         self.device = device
+        self.project = project
         self.network = None
         self.parser = None
 
     def _parse_dataframe(self, dataframe):
         self.parser = parser = DataFrameParser().fit(dataframe)
         data = parser.transform(dataframe)
-        if not self.cards: self.cards = parser.cards
-        if not self.embeded_dims: self.embeded_dims = parser.embeds
+        if not self.cards:
+            self.cards = parser.cards
+        if not self.embeded_dims:
+            self.embeded_dims = parser.embeds
         return data
 
     @property
@@ -54,10 +58,12 @@ class DAE(object):
         )
 
     @property
-    def datatype_info(self): return self.parser.datatype_info()
+    def datatype_info(self):
+        return self.parser.datatype_info()
 
     @property
-    def is_fitted(self): return any(val is None for val in [self.network, self.parser])
+    def is_fitted(self):
+        return any(val is None for val in [self.network, self.parser])
 
     def save(self, path_to_model_dump):
         model_state_dict = dict(
@@ -70,21 +76,21 @@ class DAE(object):
                 embeded_dims=self.embeded_dims,
                 device=self.device,
             ),
-            parser = self.parser,
-            network_state_dict=self.network.state_dict()
+            parser=self.parser,
+            network_state_dict=self.network.state_dict(),
         )
         joblib.dump(model_state_dict, path_to_model_dump)
 
     def fit(
-            self,
-            dataframe,
-            batch_size=32,
-            max_epochs=1024,
-            validation_ratio=.2,
-            early_stopping_rounds=50,
-            verbose=2,
-            **train_kwargs
-        ):
+        self,
+        dataframe,
+        batch_size=32,
+        max_epochs=1024,
+        validation_ratio=0.2,
+        early_stopping_rounds=50,
+        verbose=2,
+        **train_kwargs
+    ):
         data = self._parse_dataframe(dataframe)
 
         self.network = train(
@@ -97,16 +103,17 @@ class DAE(object):
             early_stopping_rounds=early_stopping_rounds,
             max_epochs=max_epochs,
             device=self.device,
+            project=self.project,
             verbose=verbose,
             **train_kwargs
         )
 
     def transform(self, dataframe, batch_size=32):
-        assert self.network is not None, 'model not trained yet'
+        assert self.network is not None, "model not trained yet"
         return featurize(
             self.network,
             self.parser.transform(dataframe),
             self.datatype_info,
             batch_size=batch_size,
-            device=self.device
+            device=self.device,
         )

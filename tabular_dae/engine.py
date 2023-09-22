@@ -192,7 +192,7 @@ def train(
 
         if project is not None:
             wandb.log(
-                "epoch", epoch, "train_loss", train_loss, "valid_loss", valid_loss
+                {"epoch", epoch, "train_loss", train_loss, "valid_loss", valid_loss}
             )
 
         if verbose and epoch % eval_verbose == 0:
